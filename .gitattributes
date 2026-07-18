@@ -1,0 +1,8 @@
+# GitHub Linguist: show Python as the primary language.
+# The large clinician HTML UI and n8n workflow JSON would otherwise dominate.
+
+*.html linguist-documentation
+*.js linguist-documentation
+n8n-emr-soap-agent/workflow/*.json linguist-generated
+n8n-emr-soap-agent/** linguist-vendored
+python-emr-soap-agent/**/*.py linguist-detectable=true
