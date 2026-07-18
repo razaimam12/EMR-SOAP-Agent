@@ -1,0 +1,35 @@
+# Secrets / environment
+.env
+.env.*
+!.env.example
+credentials.json
+*credentials*.json
+!credentials.example.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
+
+# Build / temp
+dist/
+build/
+*.tmp
+tmp/

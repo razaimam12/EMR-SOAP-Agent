@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>EMR SOAP Draft Agent</title>
+<style>
+  * { box-sizing:border-box; }
+  body { font-family:'Segoe UI',system-ui,sans-serif; background:#0f172a; margin:0; padding:2rem; color:#e2e8f0; }
+  .wrap { max-width:900px; margin:0 auto; }
+  h1 { font-size:1.4rem; margin:0 0 .25rem; }
+  .sub { color:#94a3b8; margin:0 0 1rem; font-size:.9rem; }
+  label { display:block; font-weight:600; margin:.6rem 0 .3rem; font-size:.85rem; }
+  input, textarea, select { width:100%; padding:.55rem .7rem; border-radius:8px; border:1px solid #334155; background:#1e293b; color:#e2e8f0; font:inherit; }
+  textarea { min-height:120px; }
+  details { background:#111c33; border:1px solid #24304a; border-radius:8px; padding:.4rem .8rem; margin-bottom:1rem; }
+  summary { cursor:pointer; font-weight:600; font-size:.85rem; color:#93c5fd; }
+  .fields { display:flex; gap:.6rem; flex-wrap:wrap; }
+  .f-name { flex:2 1 220px; } .f-mr { flex:1 1 150px; } .f-prov { flex:1 1 170px; }
+  .f-age { flex:1 1 90px; } .f-sex { flex:1 1 120px; } .f-wt { flex:1 1 110px; }
+  .bulletbar { display:flex; align-items:center; justify-content:space-between; }
+  .mic { background:#334155; color:#fff; border:none; padding:.35rem .7rem; border-radius:8px; font-size:.8rem; cursor:pointer; }
+  .mic.rec { background:#dc2626; }
+  .row { display:flex; gap:.5rem; margin-top:.75rem; flex-wrap:wrap; }
+  button.act { background:#0d9488; color:#fff; border:none; padding:.7rem 1.2rem; border-radius:8px; font-weight:600; cursor:pointer; }
+  button.secondary { background:#334155; color:#fff; border:none; padding:.7rem 1.2rem; border-radius:8px; font-weight:600; cursor:pointer; }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  .paper { background:#fff; color:#0f172a; border-radius:10px; padding:1.6rem 1.8rem; margin-top:1.25rem; box-shadow:0 6px 24px rgba(0,0,0,.25); line-height:1.5; display:none; }
+  .paper.show { display:block; }
+  .lh { display:flex; align-items:center; gap:.8rem; }
+  .lh img { height:52px; width:auto; }
+  .clinic { font-weight:700; font-size:1.15rem; color:#0f172a; }
+  .clinic small { display:block; font-weight:400; color:#64748b; font-size:.78rem; }
+  .hgrid { display:flex; flex-wrap:wrap; gap:.25rem 1.5rem; font-size:.9rem; color:#334155; border-bottom:2px solid #e2e8f0; padding-bottom:.6rem; margin:.4rem 0 .2rem; }
+  .doc-title { font-size:1.05rem; font-weight:700; color:#0d9488; border-bottom:2px solid #e2e8f0; padding-bottom:.5rem; margin-bottom:.5rem; }
+  .sec { font-weight:700; color:#0f766e; margin-top:1rem; margin-bottom:.2rem; letter-spacing:.02em; }
+  .ln { color:#1e293b; white-space:pre-wrap; }
+  .alert { background:#fef2f2; color:#b91c1c; border-left:4px solid #dc2626; padding:.5rem .75rem; margin:.5rem 0; font-weight:600; border-radius:4px; }
+  .meta { color:#94a3b8; font-size:.8rem; margin-top:1rem; }
+  .disc { color:#64748b; font-size:.8rem; font-style:italic; margin-top:.35rem; }
+  .triage { padding:.6rem .9rem; border-radius:6px; font-weight:700; margin-bottom:.9rem; }
+  .triage-emergency { background:#fee2e2; color:#991b1b; border-left:5px solid #dc2626; }
+  .triage-urgent { background:#fef3c7; color:#92400e; border-left:5px solid #d97706; }
+  .triage-routine { background:#dcfce7; color:#166534; border-left:5px solid #16a34a; }
+  .sp { height:.4rem; }
+  .sign { margin-top:1.5rem; padding-top:.8rem; border-top:1px dashed #94a3b8; font-size:.9rem; color:#1e293b; }
+  .sign .sigline { margin-top:.6rem; }
+  #editor { min-height:340px; margin-top:1.25rem; display:none; font-family:ui-monospace,Consolas,monospace; font-size:.85rem; }
+  .status { margin-top:1rem; color:#94a3b8; font-size:.9rem; }
+  #printarea { display:none; }
+  @media print {
+    body { background:#fff !important; padding:0; color:#000; }
+    body.printing-doc > *:not(#printarea) { display:none !important; }
+    #printarea { display:block !important; background:#fff; color:#0f172a; padding:0 6mm; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>EMR SOAP Draft Agent</h1>
+  <p class="sub">Enter patient details and clinical bullet points. Returns a DRAFT SOAP note plus decision support for physician review - not a signed record.</p>
+
+  <div class="fields">
+    <div class="f-name"><label for="pname">Patient name *</label><input id="pname" type="text" placeholder="e.g. Jane Doe" /></div>
+    <div class="f-mr"><label for="mrn">MR number *</label><input id="mrn" type="text" placeholder="auto if left blank" /></div>
+    <div class="f-prov"><label for="prov">Provider (optional)</label><input id="prov" type="text" placeholder="name - Dr. added automatically" /></div>
+  </div>
+  <div class="fields">
+    <div class="f-age"><label for="age">Age</label><input id="age" type="number" min="0" max="130" placeholder="yrs" /></div>
+    <div class="f-sex"><label for="sex">Sex</label><select id="sex"><option value="">-</option><option>Male</option><option>Female</option><option>Other</option></select></div>
+    <div class="f-wt"><label for="weight">Weight (kg)</label><input id="weight" type="number" min="0" step="0.1" placeholder="kg" /></div>
+  </div>
+  <div class="bulletbar">
+    <label for="bullets">Clinical bullet points</label>
+    <button id="mic" type="button" class="mic">🎤 Speak</button>
+  </div>
+  <textarea id="bullets" placeholder="e.g. chest pain on exertion 2 days, radiates to left arm, SOB. BP 158/94, HR 98. Hx hypertension. Meds: amlodipine. Allergy: penicillin."></textarea>
+  <div class="row">
+    <button id="run" type="button" class="act">Generate SOAP Draft</button>
+    <button id="edit" type="button" class="secondary" disabled>Edit note</button>
+    <button id="copy" type="button" class="secondary" disabled>Copy note</button>
+    <button id="pdf" type="button" class="secondary" disabled>Download PDF</button>
+    <button id="rx" type="button" class="secondary" disabled>Rx slip (PDF)</button>
+    <button id="handout" type="button" class="secondary" disabled>Patient handout (PDF)</button>
+  </div>
+  <div id="status" class="status">Ready.</div>
+  <textarea id="editor"></textarea>
+  <div id="paper" class="paper">
+    <div id="phead"></div>
+    <div id="body"></div>
+    <div id="sign" class="sign"></div>
+  </div>
+</div>
+<div id="printarea"></div>
+<script>
+  var $=function(id){return document.getElementById(id);};
+  var btn=$('run'), editBtn=$('edit'), copyBtn=$('copy'), pdfBtn=$('pdf'), rxBtn=$('rx'), handoutBtn=$('handout'),
+      micBtn=$('mic'), statusEl=$('status'), paper=$('paper'), bodyEl=$('body'), phead=$('phead'), signEl=$('sign'),
+      editor=$('editor'), pname=$('pname'), mrn=$('mrn'), prov=$('prov'), ageEl=$('age'), sexEl=$('sex'),
+      weightEl=$('weight'), bulletsEl=$('bullets');
+  var noteBody='', headerText='', signText='', lastMR='', editing=false, lastDraft=null, lastCtx=null;
+  var CLINIC='North Hospital New York';
+  var CLINIC_LOGO='';
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function pad(n){ n=''+n; return n.length<2?'0'+n:n; }
+  function genMR(){ var d=new Date(); return 'MR-'+d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'-'+Math.floor(1000+Math.random()*9000); }
+  function fmtProv(p){ p=(p||'').trim(); if(!p) return ''; return /^dr\.?\s/i.test(p)?p:('Dr. '+p); }
+  function demoBits(){
+    var a=ageEl.value.trim(), s=sexEl.value, w=weightEl.value.trim(), parts=[];
+    if(a) parts.push(a+' yrs'); if(s) parts.push(s); if(w) parts.push(w+' kg');
+    return { label: parts.join(', '), age:a, sex:s, weight:w };
+  }
+  function initials(name){
+    if(!name || name.charAt(0)==='[') return '';
+    var w=name.replace(/[^A-Za-z0-9 ]/g,' ').split(/\s+/).filter(Boolean);
+    var skip={of:1,the:1,and:1,for:1,at:1,in:1,on:1};
+    var pick=w.filter(function(x){ return !skip[x.toLowerCase()]; });
+    return (pick.length?pick:w).slice(0,3).map(function(x){ return x.charAt(0).toUpperCase(); }).join('');
+  }
+  function makeLogoSVG(name){
+    var ini=initials(name), op=ini?'0.22':'1', fs=ini.length>=3?19:26;
+    var cross="<rect x='28' y='12' width='8' height='40' rx='2' fill='#ffffff' opacity='"+op+"'/><rect x='12' y='28' width='40' height='8' rx='2' fill='#ffffff' opacity='"+op+"'/>";
+    var text=ini?"<text x='32' y='41' font-family='Segoe UI,Arial,sans-serif' font-size='"+fs+"' font-weight='700' fill='#ffffff' text-anchor='middle'>"+ini+"</text>":"";
+    return "<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'><defs><linearGradient id='lg' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#0d9488'/><stop offset='1' stop-color='#0f766e'/></linearGradient></defs><rect x='2' y='2' width='60' height='60' rx='14' fill='url(#lg)'/>"+cross+text+"</svg>";
+  }
+  function makeLogoDataUri(name){ return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(makeLogoSVG(name)); }
+  function logoBadge(px){
+    px=px||52; var ini=initials(CLINIC)||'+';
+    var fs=Math.round(px*(ini.length>=3?0.32:0.42));
+    return '<div style="width:'+px+'px;height:'+px+'px;border-radius:12px;background:#0d9488;color:#ffffff;text-align:center;line-height:'+px+'px;font-weight:700;font-size:'+fs+'px;font-family:Segoe UI,Arial,sans-serif;">'+esc(ini)+'</div>';
+  }
+  function logoHtml(h){ return logoBadge(h||52); }
+  function headHtml(name,mr,provider,dt,demo){
+    var pr=fmtProv(provider);
+    return '<div class="lh">'+logoHtml(52)+'<div class="clinic">'+esc(CLINIC)+'<small>AI-assisted clinical documentation - physician review required</small></div></div>'+
+      '<div class="hgrid"><span><b>Patient:</b> '+esc(name)+'</span><span><b>MR #:</b> '+esc(mr)+'</span>'+
+      (demo?'<span><b>Age/Sex/Wt:</b> '+esc(demo)+'</span>':'')+
+      (pr?'<span><b>Provider:</b> '+esc(pr)+'</span>':'')+'<span><b>Date:</b> '+esc(dt)+'</span></div>';
+  }
+  function headTxt(name,mr,provider,dt,demo){
+    var pr=fmtProv(provider);
+    return CLINIC+'\nPatient: '+name+'    MR #: '+mr+(demo?'\nAge/Sex/Wt: '+demo:'')+(pr?'\nProvider: '+pr:'')+'    Date: '+dt+'\n----------------------------------------\n';
+  }
+  function signHtml(provider,dt){
+    var pr=fmtProv(provider)||'____________________';
+    return '<div><b>Reviewed &amp; signed by:</b> '+esc(pr)+'</div>'+
+      '<div class="sigline">Signature: ______________________&nbsp;&nbsp;&nbsp;&nbsp;Date/Time: '+esc(dt)+'</div>'+
+      '<div class="disc">This AI-generated draft must be verified and signed by a licensed physician before entering the medical record.</div>';
+  }
+  function signTxt(provider,dt){
+    var pr=fmtProv(provider)||'____________________';
+    return '\n\nReviewed & signed by: '+pr+'\nSignature: ______________________    Date/Time: '+dt;
+  }
+  function render(note){
+    var lines=String(note).split('\n'), html='';
+    for(var k=0;k<lines.length;k++){
+      var raw=lines[k], t=raw.trim();
+      if(t===''){ html+='<div class="sp"></div>'; continue; }
+      if(t.indexOf('TRIAGE:')===0){ continue; }
+      if(t.indexOf('SOAP NOTE')===0){ html+='<div class="doc-title">'+esc(t)+'</div>'; continue; }
+      if(t.indexOf('**')===0){ html+='<div class="alert">'+esc(t.replace(/\*\*/g,'').trim())+'</div>'; continue; }
+      if(t.indexOf('Disclaimer:')===0){ html+='<div class="disc">'+esc(t)+'</div>'; continue; }
+      if(t.indexOf('Generated:')===0){ html+='<div class="meta">'+esc(t)+'</div>'; continue; }
+      if(/^[A-Z] - /.test(t) || t.indexOf('CHIEF COMPLAINT')===0 || t.indexOf('ICD-10')===0 || t.indexOf('Differential Diagnosis')===0 || t.indexOf('RECOMMENDED INVESTIGATIONS')===0 || t.indexOf('SUGGESTED FOLLOW-UP')===0 || t.indexOf('CLINICAL RISK SCORES')===0 || t.indexOf('SUGGESTED PRESCRIPTION')===0){ html+='<div class="sec">'+esc(t)+'</div>'; continue; }
+      var indent=(raw.match(/^\s*/)[0]||'').length;
+      html+='<div class="ln" style="padding-left:'+(indent*0.5)+'em">'+esc(t)+'</div>';
+    }
+    return html;
+  }
+  function setOutButtons(on){ editBtn.disabled=!on; copyBtn.disabled=!on; pdfBtn.disabled=!on; }
+  function applyEdits(){ if(editing){ noteBody=editor.value; bodyEl.innerHTML=render(noteBody); editor.style.display='none'; bodyEl.style.display=''; signEl.style.display=''; editing=false; editBtn.textContent='Edit note'; } }
+
+  /* ---- Voice dictation: record mic + transcribe via Groq Whisper (reliable, no browser speech service) ---- */
+  var TRANSCRIBE_URL=location.origin+'/webhook/soap-transcribe';
+  var mediaRec=null, chunks=[], recording=false, micStream=null;
+  function micReset(){ recording=false; micBtn.className='mic'; micBtn.textContent='🎤 Speak'; }
+  if(!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder)){
+    micBtn.disabled=true; micBtn.title='Recording not supported in this browser. Use Chrome or Edge.';
+  }
+  async function sendForTranscription(blob){
+    statusEl.textContent='Transcribing your voice...';
+    try{
+      var fd=new FormData(); fd.append('file', blob, 'audio.webm');
+      var r=await fetch(TRANSCRIBE_URL,{method:'POST',body:fd});
+      var t=await r.text(); var d; try{ d=JSON.parse(t); }catch(e){ d={text:t}; }
+      var tx=(d && d.text)?String(d.text).trim():'';
+      if(tx){ bulletsEl.value=(bulletsEl.value?bulletsEl.value.trim()+' ':'')+tx; statusEl.textContent='Transcribed. Review or add more, then Generate.'; }
+      else { statusEl.textContent='No speech recognised - try again and speak clearly.'; }
+    }catch(e){ statusEl.textContent='Transcription failed: '+e.message; }
+  }
+  micBtn.addEventListener('click', async function(){
+    if(recording){ try{ mediaRec.stop(); }catch(e){} micBtn.textContent='...'; return; }
+    statusEl.textContent='Requesting microphone...';
+    try{ micStream=await navigator.mediaDevices.getUserMedia({audio:true}); }
+    catch(err){
+      var nm=(err&&err.name)||'';
+      if(nm==='NotAllowedError'||nm==='SecurityError'){ statusEl.textContent='Microphone is blocked by Windows/Chrome. Enable it once (Windows mic privacy: allow desktop apps), reload, then use Speak. You can also just type.'; }
+      else if(nm==='NotFoundError'||nm==='DevicesNotFoundError'){ statusEl.textContent='No microphone detected. Connect a mic and check Windows Sound settings.'; }
+      else { statusEl.textContent='Microphone unavailable: '+((err&&err.message)||nm||'unknown')+'.'; }
+      return;
+    }
+    chunks=[];
+    try{ mediaRec=new MediaRecorder(micStream); }
+    catch(e){ try{ mediaRec=new MediaRecorder(micStream,{mimeType:'audio/webm'}); }catch(e2){ statusEl.textContent='Recording not supported here.'; return; } }
+    mediaRec.ondataavailable=function(e){ if(e.data && e.data.size) chunks.push(e.data); };
+    mediaRec.onstop=function(){
+      if(micStream){ micStream.getTracks().forEach(function(t){ t.stop(); }); }
+      micReset();
+      if(!chunks.length){ statusEl.textContent='No audio captured - try again.'; return; }
+      sendForTranscription(new Blob(chunks,{type:(mediaRec.mimeType||'audio/webm')}));
+    };
+    mediaRec.start(); recording=true; micBtn.className='mic rec'; micBtn.textContent='● Stop'; statusEl.textContent='Recording... click Stop when finished.';
+  });
+
+  /* ---- Generate ---- */
+  btn.addEventListener('click', async function(){
+    var name=pname.value.trim();
+    if(!name){ statusEl.textContent='Please enter the patient name.'; pname.focus(); return; }
+    var mr=mrn.value.trim(); if(!mr){ mr=genMR(); mrn.value=mr; }
+    var provider=prov.value.trim();
+    var bullets=bulletsEl.value.trim();
+    if(!bullets){ statusEl.textContent='Please enter clinical bullet points.'; return; }
+    var demo=demoBits();
+    var demoLine = demo.label ? ('Patient demographics: '+demo.label) : '';
+    var sendBullets = (demoLine?demoLine+'\n':'')+bullets;
+    var dt=new Date().toLocaleString();
+    lastMR=mr; editing=false; editor.style.display='none'; bodyEl.style.display='';
+    lastCtx={name:name,mr:mr,provider:provider,dt:dt,demo:demo.label};
+    btn.disabled=true; setOutButtons(false); rxBtn.disabled=true; handoutBtn.disabled=true;
+    statusEl.textContent='Generating draft...'; paper.className='paper';
+    try{
+      var res=await fetch(window.location.href,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bullets:sendBullets,patient_name:name,mr_number:mr,provider:provider,age:demo.age,sex:demo.sex,weight:demo.weight,patient_context:{allergies:[],active_medications:[]}})});
+      var text=await res.text();
+      if(!text) throw new Error('Empty response from server. Check n8n Executions.');
+      var data; try{ data=JSON.parse(text); }catch(e){ throw new Error('Non-JSON response: '+text.slice(0,200)); }
+      if(data && data.formatted_note){
+        lastDraft=data.draft||{};
+        var tri=lastDraft.triage||null, banner='';
+        if(tri&&tri.level){ var lv=String(tri.level).toLowerCase(); var cls=lv.indexOf('emerg')>=0?'triage-emergency':(lv.indexOf('urgent')>=0?'triage-urgent':'triage-routine'); banner='<div class="triage '+cls+'">TRIAGE: '+esc(tri.level)+(tri.rationale&&tri.rationale!=='[not documented]'?' - '+esc(tri.rationale):'')+'</div>'; }
+        noteBody=data.formatted_note;
+        headerText=headTxt(name,mr,provider,dt,demo.label);
+        signText=signTxt(provider,dt);
+        phead.innerHTML=headHtml(name,mr,provider,dt,demo.label);
+        bodyEl.innerHTML=banner+render(noteBody);
+        signEl.innerHTML=signHtml(provider,dt); signEl.style.display='';
+        paper.className='paper show'; setOutButtons(true);
+        rxBtn.disabled=!(lastDraft.prescription&&lastDraft.prescription.length);
+        var pi=lastDraft.patient_instructions||{}; handoutBtn.disabled=!((pi.english||'').trim()||(pi.urdu||'').trim());
+        statusEl.textContent='Draft generated. Review, edit if needed, then sign.';
+      }
+      else if(data && data.success===false){ noteBody=''; lastDraft=null; phead.innerHTML=''; signEl.innerHTML=''; signEl.style.display='none'; bodyEl.innerHTML='<div class="alert">'+esc(data.error||'Error')+'</div>'+(data.hint?'<div class="ln">'+esc(data.hint)+'</div>':''); paper.className='paper show'; statusEl.textContent='Could not generate.'; }
+      else { phead.innerHTML=''; signEl.innerHTML=''; signEl.style.display='none'; bodyEl.innerHTML='<pre>'+esc(JSON.stringify(data,null,2))+'</pre>'; paper.className='paper show'; statusEl.textContent='Done.'; }
+    }catch(e){ statusEl.textContent='Request failed: '+e.message; }
+    finally{ btn.disabled=false; }
+  });
+
+  /* ---- Edit ---- */
+  editBtn.addEventListener('click', function(){
+    if(!noteBody) return;
+    if(!editing){ editor.value=noteBody; editor.style.display='block'; bodyEl.style.display='none'; signEl.style.display='none'; editing=true; editBtn.textContent='Apply edits'; statusEl.textContent='Editing note - click "Apply edits" when done.'; editor.focus(); }
+    else { applyEdits(); statusEl.textContent='Edits applied.'; }
+  });
+
+  /* ---- Copy ---- */
+  copyBtn.addEventListener('click', function(){ applyEdits(); if(noteBody){ navigator.clipboard.writeText(headerText+noteBody+signText); statusEl.textContent='Note copied to clipboard.'; } });
+
+  /* ---- PDF (native print - works in all browsers) ---- */
+  pdfBtn.addEventListener('click', function(){
+    applyEdits();
+    if(paper.className.indexOf('show')<0){ statusEl.textContent='Generate a note first.'; return; }
+    printHtml(phead.innerHTML + bodyEl.innerHTML + signEl.innerHTML);
+  });
+
+  /* ---- Document PDF helpers (inline styles so html2pdf renders reliably) ---- */
+  function docHeaderInline(){
+    var c=lastCtx||{};
+    var logo=logoBadge(52);
+    return '<div style="display:flex;align-items:center;gap:12px;border-bottom:2px solid #e2e8f0;padding-bottom:8px;">'+logo+
+      '<div style="font-weight:700;font-size:18px;color:#0f172a;">'+esc(CLINIC)+'<div style="font-weight:400;color:#64748b;font-size:12px;">AI-assisted - physician review required</div></div></div>'+
+      '<div style="font-size:14px;color:#334155;margin:10px 0;"><b>Patient:</b> '+esc(c.name||'')+' &nbsp;&nbsp; <b>MR #:</b> '+esc(c.mr||'')+(c.demo?' &nbsp;&nbsp; <b>Age/Sex/Wt:</b> '+esc(c.demo):'')+'<br><b>Provider:</b> '+esc(fmtProv(c.provider)||'____________')+' &nbsp;&nbsp; <b>Date:</b> '+esc(c.dt||'')+'</div>';
+  }
+  function docSignInline(){
+    var c=lastCtx||{};
+    return '<div style="margin-top:26px;padding-top:8px;border-top:1px dashed #94a3b8;font-size:14px;color:#0f172a;"><b>Reviewed &amp; signed by:</b> '+esc(fmtProv(c.provider)||'____________________')+'<br>Signature: ______________________ &nbsp;&nbsp; Date/Time: '+esc(c.dt||'')+'<div style="color:#64748b;font-style:italic;font-size:12px;margin-top:6px;">Physician verification required before use.</div></div>';
+  }
+  function printHtml(inner){
+    var pa=$('printarea');
+    pa.innerHTML='<div style="font-family:Segoe UI,system-ui,sans-serif;line-height:1.5;color:#0f172a;">'+inner+'</div>';
+    document.body.classList.add('printing-doc');
+    var cleaned=false;
+    function done(){ if(cleaned) return; cleaned=true; document.body.classList.remove('printing-doc'); pa.innerHTML=''; window.removeEventListener('afterprint', done); }
+    window.addEventListener('afterprint', done);
+    statusEl.textContent='Opening print dialog - choose "Save as PDF" (or "Microsoft Print to PDF") as the printer.';
+    setTimeout(function(){ try{ window.print(); }catch(e){ done(); statusEl.textContent='Could not open print dialog.'; } }, 150);
+    setTimeout(done, 120000);
+  }
+
+  /* ---- Rx slip PDF ---- */
+  rxBtn.addEventListener('click', function(){
+    var rx=(lastDraft&&lastDraft.prescription)||[];
+    if(!rx.length){ statusEl.textContent='No prescription suggestions available.'; return; }
+    var td='border:1px solid #cbd5e1;padding:6px 8px;text-align:left;font-size:13px;';
+    var th='border:1px solid #cbd5e1;padding:6px 8px;text-align:left;font-size:13px;background:#f1f5f9;';
+    var rows='';
+    for(var i=0;i<rx.length;i++){ var r=rx[i]||{}; rows+='<tr><td style="'+td+'">'+(i+1)+'</td><td style="'+td+'">'+esc(r.drug||'')+'</td><td style="'+td+'">'+esc(r.dose||'')+'</td><td style="'+td+'">'+esc(r.route||'')+'</td><td style="'+td+'">'+esc(r.frequency||'')+'</td><td style="'+td+'">'+esc(r.duration||'')+'</td><td style="'+td+'">'+esc(r.notes||'')+'</td></tr>'; }
+    var inner=docHeaderInline()+
+      '<h2 style="color:#0f766e;font-size:18px;margin:14px 0 6px;">Prescription (Rx) - suggested, for physician approval</h2>'+
+      '<table style="width:100%;border-collapse:collapse;margin-top:8px;"><thead><tr><th style="'+th+'">#</th><th style="'+th+'">Drug</th><th style="'+th+'">Dose</th><th style="'+th+'">Route</th><th style="'+th+'">Frequency</th><th style="'+th+'">Duration</th><th style="'+th+'">Notes</th></tr></thead><tbody>'+rows+'</tbody></table>'+
+      docSignInline();
+    printHtml(inner);
+  });
+
+  /* ---- Patient handout PDF (English + Urdu) ---- */
+  handoutBtn.addEventListener('click', function(){
+    var pi=(lastDraft&&lastDraft.patient_instructions)||{};
+    var en=(pi.english||'').trim(), ur=(pi.urdu||'').trim();
+    if(!en&&!ur){ statusEl.textContent='No patient instructions available.'; return; }
+    var inner=docHeaderInline()+'<h2 style="color:#0f766e;font-size:18px;margin:14px 0 6px;">Patient Instructions</h2>';
+    if(en){ inner+='<div style="font-size:15px;color:#0f172a;">'+esc(en).replace(/\n/g,'<br>')+'</div>'; }
+    if(ur){ inner+='<h2 style="color:#0f766e;font-size:18px;margin:16px 0 6px;">مریض کے لیے ہدایات</h2><div style="direction:rtl;text-align:right;font-size:17px;color:#0f172a;">'+esc(ur).replace(/\n/g,'<br>')+'</div>'; }
+    inner+='<div style="color:#64748b;font-style:italic;font-size:12px;margin-top:16px;">Given by: '+esc(fmtProv(lastCtx&&lastCtx.provider)||CLINIC)+'</div>';
+    printHtml(inner);
+  });
+</script>
+</body>
+</html>
