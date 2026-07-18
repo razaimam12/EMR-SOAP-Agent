@@ -1,8 +1,22 @@
-# EMR SOAP Draft Agent — n8n Implementation
+# EMR SOAP Draft Agent — n8n Method
 
-A self-hosted [n8n](https://n8n.io) workflow that serves a clinician web form and generates a structured **DRAFT SOAP note** with decision support, using an OpenAI-compatible LLM (default **Groq / `llama-3.3-70b-versatile`**) and **Whisper** for voice dictation.
+Self-hosted **[n8n](https://n8n.io)** implementation of the EMR SOAP Draft Agent (visual low-code workflow + HTML clinician UI).
+
+This is **Method A** in the root README. The alternative is the **Python FastAPI** folder (`../python-emr-soap-agent`).
 
 > **Disclaimer:** All output is an AI-generated draft and must be reviewed and signed by a licensed physician.
+
+---
+
+## Technology stack (n8n method)
+
+| Component | What we use |
+| --- | --- |
+| Orchestration | **n8n** workflow (webhook → LLM → parse → respond) |
+| Clinician UI | **HTML + JavaScript** (`frontend/soap_form.html`) |
+| LLM | OpenAI-compatible API (default **Groq** `llama-3.3-70b-versatile`) |
+| Voice | **Whisper** (`whisper-large-v3`) via Groq |
+| Runtime | **Docker** (recommended) or any n8n host |
 
 ---
 
@@ -40,7 +54,7 @@ Webhook - Transcribe ─► Groq Whisper ─► Respond - Transcript
 
 ---
 
-## Setup
+## Step-by-step setup
 
 ### 1. Run n8n
 
